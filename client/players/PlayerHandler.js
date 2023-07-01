@@ -203,6 +203,14 @@ export default class PlayerHandler {
     const session = await this.ctx.$axios.$post(path, payload).catch((error) => {
       console.error('Failed to start stream', error)
     })
+    if (this.ctx.user.type !== "root" && !this.ctx.user.permissions.serverSideProgress) {
+      try {
+        const libraryItemProgress = JSON.parse(localStorage.getItem(`progress-${this.ctx.user.id}`))[this.libraryItem.id]
+        session.currentTime = libraryItemProgress ? libraryItemProgress.currentTime : 0
+      } catch (e) {
+        console.error("could not parse local storage progress", e)
+      }
+    }
     this.prepareSession(session)
   }
 
@@ -309,7 +317,7 @@ export default class PlayerHandler {
     if (this.player) {
       const listeningTimeToAdd = Math.max(0, Math.floor(this.listeningTimeSinceSync))
       // When opening player and quickly closing dont save progress
-      if (listeningTimeToAdd > 20) {
+      if (listeningTimeToAdd > 20 && (this.ctx.user.type === "root" || this.ctx.user.permissions.serverSideProgress)) {
         syncData = {
           timeListened: listeningTimeToAdd,
           duration: this.getDuration(),
@@ -339,6 +347,37 @@ export default class PlayerHandler {
     }
 
     this.listeningTimeSinceSync = 0
+
+    if (this.ctx.user.type !== "root" && !this.ctx.user.permissions.serverSideProgress) {
+      if (this.libraryItemId !== null) {
+        let progress = localStorage.getItem(`progress-${this.ctx.user.id}`)
+        if (progress) {
+          try {
+            progress = JSON.parse(progress)
+          } catch (e) {
+            console.error("error when parsing progress local storage item: ", e)
+            progress = {}
+          }
+        } else {
+          progress = {}
+        }
+        progress[this.libraryItemId] = {
+          progress: currentTime / this.getDuration(),
+          id: this.libraryItemId,
+          libraryItemId: this.libraryItemId,
+          currentTime: currentTime,
+          duration: this.getDuration(),
+        }
+        window.localStorage.setItem(`progress-${this.ctx.user.id}`, JSON.stringify(progress))
+        console.log(`set progress-${this.ctx.user.id}`, progress)
+        this.ctx.$store.commit('user/updateMediaProgress', {
+          id: this.libraryItemId,
+          data: progress[this.libraryItemId],
+        })
+      }
+      return
+    }
+
     this.ctx.$axios.$post(`/api/session/${this.currentSessionId}/sync`, syncData, { timeout: 6000 }).then(() => {
       this.failedProgressSyncs = 0
     }).catch((error) => {

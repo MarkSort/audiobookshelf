@@ -666,27 +666,50 @@ export default {
         return
       }
 
-      var updatePayload = {
-        isFinished: !this.itemIsFinished
+      if (this.store.state.user.user.type !== "root" && !this.store.state.user.user.permissions.serverSideProgress) {
+        try {
+          const userId = this.store.state.user.user.id
+          const progress = JSON.parse(localStorage.getItem(`progress-${userId}`))
+          progress[this.libraryItemId] = {
+            progress: 1,
+            isFinished: true,
+            id: this.libraryItemId,
+            libraryItemId: this.libraryItemId,
+            currentTime: 0,
+            duration: 0,
+          }
+          window.localStorage.setItem(`progress-${userId}`, JSON.stringify(progress))
+          console.log(`set progress-${userId}`, progress)
+          this.store.commit('user/updateMediaProgress', {
+            id: this.libraryItemId,
+            data: progress[this.libraryItemId],
+          })
+        } catch (e) {
+          console.error("error when marking as finished locally: ", e)
+        }
+      } else {
+        var updatePayload = {
+          isFinished: !this.itemIsFinished
+        }
+        this.processing = true
+
+        var apiEndpoint = `/api/me/progress/${this.libraryItemId}`
+        if (this.recentEpisode) apiEndpoint += `/${this.recentEpisode.id}`
+
+        var toast = this.$toast || this.$nuxt.$toast
+        var axios = this.$axios || this.$nuxt.$axios
+        axios
+          .$patch(apiEndpoint, updatePayload)
+          .then(() => {
+            this.processing = false
+            toast.success(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedSuccess : this.$strings.ToastItemMarkedAsNotFinishedSuccess)
+          })
+          .catch((error) => {
+            console.error('Failed', error)
+            this.processing = false
+            toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
+          })
       }
-      this.processing = true
-
-      var apiEndpoint = `/api/me/progress/${this.libraryItemId}`
-      if (this.recentEpisode) apiEndpoint += `/${this.recentEpisode.id}`
-
-      var toast = this.$toast || this.$nuxt.$toast
-      var axios = this.$axios || this.$nuxt.$axios
-      axios
-        .$patch(apiEndpoint, updatePayload)
-        .then(() => {
-          this.processing = false
-          toast.success(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedSuccess : this.$strings.ToastItemMarkedAsNotFinishedSuccess)
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-          this.processing = false
-          toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
-        })
     },
     editPodcast() {
       this.$emit('editPodcast', this.libraryItem)

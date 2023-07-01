@@ -76,6 +76,15 @@
 
             <div class="flex items-center my-2 max-w-md">
               <div class="w-1/2">
+                <p id="server-side-progress-permissions-toggle">{{ $strings.LabelPermissionsServerSideProgress }}</p>
+              </div>
+              <div class="w-1/2">
+                <ui-toggle-switch labeledBy="server-side-progress-permissions-toggle" v-model="newUser.permissions.serverSideProgress" />
+              </div>
+            </div>
+
+            <div class="flex items-center my-2 max-w-md">
+              <div class="w-1/2">
                 <p id="access-all-libs--permissions-toggle">{{ $strings.LabelPermissionsAccessAllLibraries }}</p>
               </div>
               <div class="w-1/2">
@@ -319,6 +328,7 @@ export default {
         update: type === 'admin',
         delete: type === 'admin',
         upload: type === 'admin',
+        serverSideProgress: type !== 'guest', 
         accessAllLibraries: true,
         accessAllTags: true,
         selectedTagsNotAccessible: false
@@ -349,6 +359,7 @@ export default {
             update: false,
             delete: false,
             upload: false,
+            serverSideProgress: true,
             accessAllLibraries: true,
             accessAllTags: true,
             selectedTagsNotAccessible: false

@@ -136,6 +136,18 @@ export const actions = {
 
 export const mutations = {
   setUser(state, user) {
+    if (user.type !== "root" && !user.permissions.serverSideProgress) {
+      let serializedProgress = localStorage.getItem(`progress-${user.id}`)
+      console.log(`got progress-${user.id}: `, serializedProgress)
+      if (serializedProgress !== null) {
+        try {
+          user.mediaProgress = Object.values(JSON.parse(serializedProgress))
+          console.log("set user.mediaProgress: ", user.mediaProgress)
+        } catch (e) {
+          console.error("error when parsing progress local storage item: ", e)
+        }
+      }
+    }
     state.user = user
     if (user) {
       if (user.token) localStorage.setItem('token', user.token)

@@ -53,6 +53,11 @@ class PlaybackSessionManager {
   }
 
   async syncSessionRequest(user, session, payload, res) {
+    if (user.type !== "root" && !user.permissions.serverSideProgress) {
+      res.sendStatus(403)
+      return
+    }
+
     if (await this.syncSession(user, session, payload)) {
       res.sendStatus(200)
     } else {
@@ -253,10 +258,12 @@ class PlaybackSessionManager {
   }
 
   async closeSession(user, session, syncData = null) {
-    if (syncData) {
-      await this.syncSession(user, session, syncData)
-    } else {
-      await this.saveSession(session)
+    if (user.type === "root" || user.permissions.serverSideProgress) {
+      if (syncData) {
+        await this.syncSession(user, session, syncData)
+      } else {
+        await this.saveSession(session)
+      }
     }
     Logger.debug(`[PlaybackSessionManager] closeSession "${session.id}"`)
     SocketAuthority.adminEmitter('user_stream_update', user.toJSONForPublic(this.sessions, this.db.libraryItems))

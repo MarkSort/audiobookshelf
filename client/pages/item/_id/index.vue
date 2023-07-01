@@ -525,21 +525,44 @@ export default {
         return
       }
 
-      var updatePayload = {
-        isFinished: !this.userIsFinished
+      if (this.$store.state.user.user.type !== "root" && !this.$store.state.user.user.permissions.serverSideProgress) {
+        try {
+          const userId = this.$store.state.user.user.id
+          const progress = JSON.parse(localStorage.getItem(`progress-${userId}`))
+          progress[this.libraryItemId] = {
+            progress: this.userIsFinished ? 0 : 1,
+            isFinished: !this.userIsFinished,
+            id: this.libraryItemId,
+            libraryItemId: this.libraryItemId,
+            currentTime: 0,
+            duration: 0,
+          }
+          window.localStorage.setItem(`progress-${userId}`, JSON.stringify(progress))
+          console.log(`set progress-${userId}`, progress)
+          this.$store.commit('user/updateMediaProgress', {
+            id: this.libraryItemId,
+            data: progress[this.libraryItemId],
+          })
+        } catch (e) {
+          console.error("error when marking as finished locally: ", e)
+        }
+      } else {
+        var updatePayload = {
+          isFinished: !this.userIsFinished
+        }
+        this.isProcessingReadUpdate = true
+        this.$axios
+          .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+          .then(() => {
+            this.isProcessingReadUpdate = false
+            this.$toast.success(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedSuccess : this.$strings.ToastItemMarkedAsNotFinishedSuccess)
+          })
+          .catch((error) => {
+            console.error('Failed', error)
+            this.isProcessingReadUpdate = false
+            this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
+          })
       }
-      this.isProcessingReadUpdate = true
-      this.$axios
-        .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
-        .then(() => {
-          this.isProcessingReadUpdate = false
-          this.$toast.success(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedSuccess : this.$strings.ToastItemMarkedAsNotFinishedSuccess)
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-          this.isProcessingReadUpdate = false
-          this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
-        })
     },
     playItem(startTime = null) {
       let episodeId = null
@@ -606,18 +629,34 @@ export default {
     clearProgressClick() {
       if (!this.userMediaProgress) return
       if (confirm(`Are you sure you want to reset your progress?`)) {
-        this.resettingProgress = true
-        this.$axios
-          .$delete(`/api/me/progress/${this.userMediaProgress.id}`)
-          .then(() => {
-            console.log('Progress reset complete')
-            this.$toast.success(`Your progress was reset`)
-            this.resettingProgress = false
-          })
-          .catch((error) => {
-            console.error('Progress reset failed', error)
-            this.resettingProgress = false
-          })
+        if (this.$store.state.user.user.type !== "root" && !this.$store.state.user.user.permissions.serverSideProgress) {
+          try {
+            const userId = this.$store.state.user.user.id
+            const progress = JSON.parse(localStorage.getItem(`progress-${userId}`))
+            delete progress[this.userMediaProgress.id]
+            window.localStorage.setItem(`progress-${userId}`, JSON.stringify(progress))
+            console.log(`set progress-${userId}`, progress)
+            this.$store.commit('user/updateMediaProgress', {
+              id: this.userMediaProgress.id,
+              data: null,
+            })
+          } catch (e) {
+            console.error("error when clearing local progress: ", e)
+          }
+        } else {
+          this.resettingProgress = true
+          this.$axios
+            .$delete(`/api/me/progress/${this.userMediaProgress.id}`)
+            .then(() => {
+              console.log('Progress reset complete')
+              this.$toast.success(`Your progress was reset`)
+              this.resettingProgress = false
+            })
+            .catch((error) => {
+              console.error('Progress reset failed', error)
+              this.resettingProgress = false
+            })
+        }
       }
     },
     clickRSSFeed() {

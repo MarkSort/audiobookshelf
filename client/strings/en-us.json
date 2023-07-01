@@ -342,6 +342,7 @@
   "LabelPermissionsAccessExplicitContent": "Can Access Explicit Content",
   "LabelPermissionsDelete": "Can Delete",
   "LabelPermissionsDownload": "Can Download",
+  "LabelPermissionsServerSideProgress": "Can use Server Side Progress",
   "LabelPermissionsUpdate": "Can Update",
   "LabelPermissionsUpload": "Can Upload",
   "LabelPhotoPathURL": "Photo Path/URL",
